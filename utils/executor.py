@@ -32,7 +32,7 @@ class CodeExecutor:
                 input_data = f_in.read()
 
             result = subprocess.run(
-                ['python', code_file],
+                ['python3', code_file],
                 input=input_data,
                 capture_output=True,
                 text=True,
