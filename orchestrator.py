@@ -23,37 +23,55 @@ class ProblemSolverOrchestrator:
         if google_key and google_key != "your-google-api-key-here":
             os.environ['GOOGLE_API_KEY'] = google_key
 
-        # Initialize agents
+        # Get language configuration
+        self.language = self.config.get('language', 'python').lower()
+        
+        # Initialize agents with language
         self.tester_agent = TesterAgent(self.config['models']['tester_agent'])
-        self.brute_agent = BruteAgent(self.config['models']['brute_agent'])
-        self.optimal_agent = OptimalAgent(self.config['models']['optimal_agent'])
+        self.brute_agent = BruteAgent(self.config['models']['brute_agent'], language=self.language)
+        self.optimal_agent = OptimalAgent(self.config['models']['optimal_agent'], language=self.language)
 
         # Initialize utilities
         timeout = self.config['execution']['timeout_seconds']
-        self.executor = CodeExecutor(timeout=timeout)
+        self.executor = CodeExecutor(timeout=timeout, language=self.language)
         self.comparator = OutputComparator()
 
         # Set up workspace
         self.workspace = self.config['output']['workspace_dir']
         os.makedirs(self.workspace, exist_ok=True)
 
-        # File paths
+        # Get file extensions based on language
+        lang_extensions = {
+            'python': '.py',
+            'java': '.java',
+            'cpp': '.cpp',
+            'c++': '.cpp'
+        }
+        ext = lang_extensions.get(self.language, '.py')
+        
+        # File paths with proper extensions
+        brute_sol_base = self.config['files']['brute_solution']
+        optimal_sol_base = self.config['files']['optimal_solution']
+        
         self.files = {
             'test_inputs': os.path.join(self.workspace, self.config['files']['test_inputs']),
-            'brute_solution': os.path.join(self.workspace, self.config['files']['brute_solution']),
+            'brute_solution': os.path.join(self.workspace, brute_sol_base + ext),
             'brute_outputs': os.path.join(self.workspace, self.config['files']['brute_outputs']),
-            'optimal_solution': os.path.join(self.workspace, self.config['files']['optimal_solution']),
-            'optimal_outputs': os.path.join(self.workspace, self.config['files']['optimal_outputs'])
+            'optimal_solution': os.path.join(self.workspace, optimal_sol_base + ext),
+            'optimal_outputs': os.path.join(self.workspace, self.config['files']['optimal_outputs']),
+            'input_file': os.path.join(self.workspace, 'input.txt'),
+            'output_file': os.path.join(self.workspace, 'output.txt')
         }
 
         self.max_attempts = self.config['execution']['max_optimal_attempts']
 
-    def solve(self, problem_statement: str) -> Tuple[bool, Optional[str], Dict]:
+    def solve(self, problem_statement: str, image_paths: Optional[List[str]] = None) -> Tuple[bool, Optional[str], Dict]:
         """
         Solve the given problem using multi-agent approach.
 
         Args:
             problem_statement: The problem description
+            image_paths: Optional list of image file paths from problem statement
 
         Returns:
             Tuple of (success, optimal_code, metadata)
@@ -74,7 +92,7 @@ class ProblemSolverOrchestrator:
 
         try:
             with ProgressIndicator("Generating test cases with TesterAgent"):
-                test_cases = self.tester_agent.generate_test_cases(problem_statement)
+                test_cases = self.tester_agent.generate_test_cases(problem_statement, image_paths=image_paths)
             with open(self.files['test_inputs'], 'w') as f:
                 f.write(test_cases)
             metadata['test_cases_generated'] = True
@@ -90,8 +108,13 @@ class ProblemSolverOrchestrator:
         print("=" * 80)
 
         try:
+            # Get expected class name for Java
+            expected_class_name = None
+            if self.language == 'java':
+                expected_class_name = os.path.splitext(os.path.basename(self.files['brute_solution']))[0]
+            
             with ProgressIndicator("Generating brute force solution with BruteAgent"):
-                brute_code = self.brute_agent.generate_solution(problem_statement)
+                brute_code = self.brute_agent.generate_solution(problem_statement, image_paths=image_paths, expected_class_name=expected_class_name)
             with open(self.files['brute_solution'], 'w') as f:
                 f.write(brute_code)
             metadata['brute_force_generated'] = True
@@ -106,11 +129,22 @@ class ProblemSolverOrchestrator:
         print("STEP 3: Executing brute force solution...")
         print("=" * 80)
 
+        # Copy test inputs to input.txt for execution
+        with open(self.files['test_inputs'], 'r') as f_in:
+            with open(self.files['input_file'], 'w') as f_out:
+                f_out.write(f_in.read())
+        
         success, error = self.executor.execute(
             self.files['brute_solution'],
-            self.files['test_inputs'],
-            self.files['brute_outputs']
+            self.files['input_file'],
+            self.files['output_file']
         )
+        
+        # Copy output to brute_outputs
+        if success:
+            with open(self.files['output_file'], 'r') as f_in:
+                with open(self.files['brute_outputs'], 'w') as f_out:
+                    f_out.write(f_in.read())
 
         if not success:
             error_msg = f"Brute force execution failed: {error}"
@@ -144,17 +178,25 @@ class ProblemSolverOrchestrator:
             }
 
             try:
+                # Get expected class name for Java
+                expected_class_name = None
+                if self.language == 'java':
+                    expected_class_name = os.path.splitext(os.path.basename(self.files['optimal_solution']))[0]
+                
                 with ProgressIndicator(f"Generating optimal solution (attempt {attempt}/{self.max_attempts})"):
                     optimal_code = self.optimal_agent.generate_solution(
                         problem_statement,
                         feedback=feedback,
-                        attempt=attempt
+                        attempt=attempt,
+                        image_paths=image_paths,
+                        expected_class_name=expected_class_name
                     )
 
                 attempt_data['code'] = optimal_code
 
                 # Save this attempt separately
-                attempt_file = os.path.join(self.workspace, f'optimal_attempt_{attempt}.py')
+                lang_ext = { 'python': '.py', 'java': '.java', 'cpp': '.cpp', 'c++': '.cpp' }.get(self.language, '.py')
+                attempt_file = os.path.join(self.workspace, f'optimal_attempt_{attempt}{lang_ext}')
                 with open(attempt_file, 'w') as f:
                     f.write(optimal_code)
 
@@ -173,19 +215,27 @@ class ProblemSolverOrchestrator:
                 print(f"✗ {error}")
                 continue
 
+            # Copy test inputs to input.txt for execution
+            with open(self.files['test_inputs'], 'r') as f_in:
+                with open(self.files['input_file'], 'w') as f_out:
+                    f_out.write(f_in.read())
+            
             # Execute optimal solution
             attempt_output_file = os.path.join(self.workspace, f'optimal_attempt_{attempt}_output.txt')
             success, error = self.executor.execute(
                 self.files['optimal_solution'],
-                self.files['test_inputs'],
-                attempt_output_file
+                self.files['input_file'],
+                self.files['output_file']
             )
 
-            # Also update main output file
+            # Copy output to attempt file and main output file
             if success:
-                with open(self.files['optimal_outputs'], 'w') as f_out:
-                    with open(attempt_output_file, 'r') as f_in:
-                        f_out.write(f_in.read())
+                with open(self.files['output_file'], 'r') as f_in:
+                    output_content = f_in.read()
+                    with open(attempt_output_file, 'w') as f_out:
+                        f_out.write(output_content)
+                    with open(self.files['optimal_outputs'], 'w') as f_out:
+                        f_out.write(output_content)
 
             if not success:
                 print(f"✗ Execution failed: {error}")

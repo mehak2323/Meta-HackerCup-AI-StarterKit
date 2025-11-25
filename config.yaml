@@ -20,6 +20,10 @@ models:
   brute_agent: "google:gemini-2.5-flash"     
   optimal_agent: "google:gemini-2.5-flash"   
 
+# Language Configuration
+# Supported languages: python, java, cpp
+language: "python"  # Options: python, java, cpp
+
 # Execution Parameters
 execution:
   max_optimal_attempts: 5
@@ -30,10 +34,10 @@ output:
   workspace_dir: "./workspace"
   preserve_intermediate: true  # Keep all generated files
 
-# File Names
+# File Names (extensions will be auto-set based on language)
 files:
   test_inputs: "small_inputs.txt"
-  brute_solution: "brute.py"
+  brute_solution: "brute"  # Extension added automatically
   brute_outputs: "small_outputs.txt"
-  optimal_solution: "optimal.py"
+  optimal_solution: "optimal"  # Extension added automatically
   optimal_outputs: "op.txt"

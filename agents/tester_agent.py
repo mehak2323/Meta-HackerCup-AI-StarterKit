@@ -1,4 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage
+from typing import Optional, List, Union
+from PIL import Image
 
 
 class TesterAgent:
@@ -42,11 +45,42 @@ Example format for multiple test cases:
 CRITICAL: Output ONLY the raw test input data above, nothing else!
 """
 
-    def generate_test_cases(self, problem_statement: str) -> str:
-        """Generate test cases for the given problem statement."""
+    def _load_image(self, image_path: str) -> Image.Image:
+        """Load image from file path."""
+        try:
+            return Image.open(image_path)
+        except Exception as e:
+            raise ValueError(f"Could not load image {image_path}: {e}")
+
+    def generate_test_cases(self, problem_statement: Union[str, List], image_paths: Optional[List[str]] = None) -> str:
+        """Generate test cases for the given problem statement.
+        
+        Args:
+            problem_statement: Problem description (text or list of content parts)
+            image_paths: Optional list of image file paths to include
+        """
+        # Prepare content for HumanMessage
+        content_parts = []
+        
+        # Add text problem statement
+        if isinstance(problem_statement, str):
+            content_parts.append(f"Generate small test cases for this problem:\n\n{problem_statement}")
+        else:
+            content_parts.extend(problem_statement)
+        
+        # Add images if provided
+        if image_paths:
+            for img_path in image_paths:
+                try:
+                    img = self._load_image(img_path)
+                    content_parts.append(img)
+                except Exception as e:
+                    print(f"Warning: Could not load image {img_path}: {e}")
+        
+        # Use HumanMessage for multimodal content
         messages = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Generate small test cases for this problem:\n\n{problem_statement}"}
+            HumanMessage(content=content_parts)
         ]
 
         response = self.model.invoke(messages)
