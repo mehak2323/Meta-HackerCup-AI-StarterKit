@@ -23,7 +23,7 @@ This approach ensures correctness through differential testing while achieving o
 
 ### Architecture
 
-![Architecture Diagram](strategy.png)
+![Architecture Diagram](/MDs/strategy.png)
 
 
 ## 🚀 Installation

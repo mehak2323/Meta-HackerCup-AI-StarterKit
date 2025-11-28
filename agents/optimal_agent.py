@@ -1,7 +1,8 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from typing import Optional, List, Union
 from PIL import Image
+import base64
 
 
 class OptimalAgent:
@@ -67,10 +68,31 @@ Guidelines:
 Output ONLY the {info['name']} code, no markdown, no explanations.
 """
 
-    def _load_image(self, image_path: str) -> Image.Image:
-        """Load image from file path."""
+    def _prepare_image_for_gemini(self, image_path: str) -> dict:
+        """Prepare image in format expected by Gemini API via LangChain."""
         try:
-            return Image.open(image_path)
+            # Read image and convert to base64
+            with open(image_path, 'rb') as f:
+                image_data = base64.b64encode(f.read()).decode('utf-8')
+            
+            # Determine MIME type from extension
+            ext = image_path.lower().split('.')[-1]
+            mime_types = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp'
+            }
+            mime_type = mime_types.get(ext, 'image/png')
+            
+            # Return as dict format for LangChain
+            return {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{mime_type};base64,{image_data}"
+                }
+            }
         except Exception as e:
             raise ValueError(f"Could not load image {image_path}: {e}")
 
@@ -106,14 +128,14 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
         if image_paths:
             for img_path in image_paths:
                 try:
-                    img = self._load_image(img_path)
-                    content_parts.append(img)
+                    img_dict = self._prepare_image_for_gemini(img_path)
+                    content_parts.append(img_dict)
                 except Exception as e:
                     print(f"Warning: Could not load image {img_path}: {e}")
 
-        # Use HumanMessage for multimodal content
+        # Use proper LangChain message format for multimodal content
         messages = [
-            {"role": "system", "content": self.system_prompt},
+            SystemMessage(content=self.system_prompt),
             HumanMessage(content=content_parts)
         ]
 
