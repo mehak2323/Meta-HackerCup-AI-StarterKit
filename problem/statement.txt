@@ -1,0 +1,35 @@
+Whilst Whacker Cup is taking place on Meta's campus, visitors will need to stow their belongings in lockers (normally used by bootcampers who don't have assigned desks yet).
+
+Lockers will need to be assigned passcodes, which are positive integers. The organizers were planning to just divvy up passcodes from the inclusive range $[L, R]$, but are concerned with their cryptographic strengths.
+
+For any integer $K > 1$, a passcode $X$ is said to be *$K$-weak* in Meta's special encryption scheme if the decimal representation of $X$ has *at least one substring with digit sum divisible by $K$*. For example, $29231$ is $7$-weak because it contains the substring $923$ with digit sum $14$ (which is divisible by $7$), but $512$ is not $7$-weak.
+
+Please determine the number of distinct $K$-weak passcodes in the range $[L, R]$. As the answer may be large, output it modulo $998{,}244{,}353$.
+
+# Constraints:
+
+$1 \le T \le 75$
+$1 \le L \le R \le 10^{2025}$
+$2 \le K \le 25$
+
+# Input Format
+
+Input begins with an integer $T$, the number of test cases. Each case is a single line containing three space-separated integers $L$, $R$, and $K$.
+
+# Output Format
+
+For the \(i\)th test case, print "`Case #i:` " followed by a single integer, the number of $K$-weak passcodes in the range $[L, R]$, modulo $998{,}244{,}353$.
+
+# Sample Explanation
+
+In the first sample case, we need to know the number of $2$-weak passcodes within $[1, 3]$. The only $K$-weak passcode in the range is is $2$, whose only substring $2$ has digit sum $2$, and is divisible by $2$. Therefore, the answer is $1$.
+
+In the second sample case, we need to know the number of $5$-weak passcodes within $[129, 135]$.
+* $129$ has substrings $[1, 2, 9, 12, 29, 129]$ with respective digit sums $[1, 2, 9, 3, 11, 12]$. None of these sums are divisible by $5$, so $129$ is not $5$-weak. 
+* $130$ has the substring $0$, with digit sum $0$, which is divisible by $5$, so it is $5$-weak.
+* $131$ has the substring $131$ with digit sum $5$, which is divisible by $5$, so it is $5$-weak.
+* $132$ has the substring $32$ with digit sum $5$, so it is $5$-weak.
+* $133$ and $134$ are not $5$-weak.
+- $135$ has the substring $5$, so it is $5$-weak.
+
+Therefore, the final answer is $4$.

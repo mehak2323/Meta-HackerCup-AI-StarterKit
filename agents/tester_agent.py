@@ -25,9 +25,16 @@ class TesterAgent:
 
 Your task is to generate SMALL, simple test cases that adhere to the input format specified in the problem statement.
 
+The problem statement may include:
+- Problem description from statement.txt
+- Sample input from sample_in.txt (if available)
+- Sample output from sample_out.txt (if available)
+- Images (img_1.jpg, img_2.jpg, etc.) that may contain additional problem information
+
 Guidelines:
 - Generate 3-5 small test cases
-- Follow the exact input format specified
+- Follow the exact input format specified in the problem statement
+- Use the sample input format as a reference if provided
 - Use small values (arrays of size 2-5, numbers < 100, etc.)
 - Cover edge cases (empty, single element, boundary values)
 - Output ONLY the test input, nothing else - NO markdown, NO code blocks, NO explanations

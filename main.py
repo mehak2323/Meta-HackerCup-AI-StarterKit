@@ -11,8 +11,6 @@ This system uses three specialized agents to solve programming problems:
 
 import sys
 import io
-import os
-import glob
 from orchestrator import ProblemSolverOrchestrator
 
 # Ensure UTF-8 encoding for Windows console
@@ -20,54 +18,53 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 
-def find_image_files(directory: str = ".") -> list:
-    """Find image files in the directory that might be part of problem statement."""
-    image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp']
-    image_files = []
-    for ext in image_extensions:
-        image_files.extend(glob.glob(os.path.join(directory, ext)))
-        image_files.extend(glob.glob(os.path.join(directory, ext.upper())))
-    return sorted(image_files)
-
-
 def main():
-    # Read problem statement from file
-    problem_file = "PROBLEM.txt"
-
-    try:
-        with open(problem_file, 'r', encoding='utf-8') as f:
-            problem_statement = f.read().strip()
-    except FileNotFoundError:
-        print(f"Error: {problem_file} not found!")
-        print(f"Please create a {problem_file} file with your problem statement.")
-        return 1
-
-    # Find image files that might be part of the problem statement
-    image_paths = find_image_files()
-    
-    # Filter to only include images that are likely problem statement images
-    # (e.g., in the same directory, named appropriately)
-    problem_images = []
-    for img_path in image_paths:
-        # Include images in current directory or explicitly named problem images
-        if os.path.dirname(img_path) in ['.', ''] or 'problem' in os.path.basename(img_path).lower():
-            problem_images.append(img_path)
-
     print("Multi-Agent Programming Problem Solver")
     print("=" * 80)
-    print(f"\nProblem loaded from: {problem_file}")
-    if problem_images:
-        print(f"Images found: {len(problem_images)}")
-        for img in problem_images:
-            print(f"  - {img}")
-    print("\n" + problem_statement)
-    print("\n")
 
     # Initialize orchestrator
     orchestrator = ProblemSolverOrchestrator()
 
+    # Load problem files from problem folder
+    try:
+        problem_statement, sample_input, sample_output, image_paths = orchestrator.load_problem_files()
+        
+        print(f"\nProblem loaded from: {orchestrator.problem_statement_file}")
+        if sample_input:
+            print(f"Sample input loaded from: {orchestrator.sample_input_file}")
+        if sample_output:
+            print(f"Sample output loaded from: {orchestrator.sample_output_file}")
+        if image_paths:
+            print(f"Images found: {len(image_paths)}")
+            for img in image_paths:
+                print(f"  - {img}")
+        print("\n" + problem_statement)
+        if sample_input:
+            print("\n=== SAMPLE INPUT ===")
+            print(sample_input)
+        if sample_output:
+            print("\n=== SAMPLE OUTPUT ===")
+            print(sample_output)
+        print("\n")
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print(f"\nPlease ensure the problem folder structure is set up correctly:")
+        print(f"  - Problem folder: {orchestrator.problem_folder}")
+        print(f"  - Required file: {orchestrator.problem_statement_file}")
+        print(f"  - Optional files: {orchestrator.sample_input_file}, {orchestrator.sample_output_file}")
+        print(f"  - Images matching pattern: {orchestrator.image_pattern}")
+        return 1
+    except Exception as e:
+        print(f"Error loading problem files: {e}")
+        return 1
+
     # Solve the problem
-    success, optimal_code, metadata = orchestrator.solve(problem_statement, image_paths=problem_images if problem_images else None)
+    success, optimal_code, metadata = orchestrator.solve(
+        problem_statement, 
+        sample_input=sample_input,
+        sample_output=sample_output,
+        image_paths=image_paths if image_paths else None
+    )
 
     # Print results
     print("\n" + "=" * 80)
@@ -92,10 +89,12 @@ def main():
         print(optimal_code)
         print("\n")
         print(f"Solution saved to: {orchestrator.files['optimal_solution']}")
+        print(f"All generated files are in: {orchestrator.generated_files_dir}")
     else:
         print("\nFailed to find a working solution.")
         if orchestrator.files['brute_solution']:
             print(f"Brute force solution available at: {orchestrator.files['brute_solution']}")
+        print(f"All generated files are in: {orchestrator.generated_files_dir}")
 
     return 0 if success else 1
 

@@ -2,6 +2,7 @@ import os
 import yaml
 import json
 import time
+import glob
 from typing import Dict, Optional, Tuple, List
 from agents import TesterAgent, BruteAgent, OptimalAgent
 from utils import CodeExecutor, OutputComparator, ProgressIndicator
@@ -36,9 +37,21 @@ class ProblemSolverOrchestrator:
         self.executor = CodeExecutor(timeout=timeout, language=self.language)
         self.comparator = OutputComparator()
 
-        # Set up workspace
+        # Set up workspace (for temporary execution files)
         self.workspace = self.config['output']['workspace_dir']
         os.makedirs(self.workspace, exist_ok=True)
+
+        # Set up generatedFiles folder (for all generated solution files and outputs)
+        self.generated_files_dir = self.config['output']['generated_files_dir']
+        os.makedirs(self.generated_files_dir, exist_ok=True)
+
+        # Set up problem folder paths
+        problem_config = self.config.get('problem', {})
+        self.problem_folder = problem_config.get('folder', './problem')
+        self.problem_statement_file = os.path.join(self.problem_folder, problem_config.get('statement_file', 'statement.txt'))
+        self.sample_input_file = os.path.join(self.problem_folder, problem_config.get('sample_input_file', 'sample_in.txt'))
+        self.sample_output_file = os.path.join(self.problem_folder, problem_config.get('sample_output_file', 'sample_out.txt'))
+        self.image_pattern = problem_config.get('image_pattern', 'img_*.jpg')
 
         # Get file extensions based on language
         lang_extensions = {
@@ -49,28 +62,83 @@ class ProblemSolverOrchestrator:
         }
         ext = lang_extensions.get(self.language, '.py')
         
-        # File paths with proper extensions
-        brute_sol_base = self.config['files']['brute_solution']
-        optimal_sol_base = self.config['files']['optimal_solution']
+        # File paths with proper extensions - all generated files go to generatedFiles folder
+        files_config = self.config['files']
+        brute_sol_base = files_config['brute_solution']
+        optimal_sol_base = files_config['optimal_solution']
         
         self.files = {
-            'test_inputs': os.path.join(self.workspace, self.config['files']['test_inputs']),
-            'brute_solution': os.path.join(self.workspace, brute_sol_base + ext),
-            'brute_outputs': os.path.join(self.workspace, self.config['files']['brute_outputs']),
-            'optimal_solution': os.path.join(self.workspace, optimal_sol_base + ext),
-            'optimal_outputs': os.path.join(self.workspace, self.config['files']['optimal_outputs']),
-            'input_file': os.path.join(self.workspace, 'input.txt'),
-            'output_file': os.path.join(self.workspace, 'output.txt')
+            'test_inputs': os.path.join(self.generated_files_dir, files_config['test_inputs']),
+            'brute_solution': os.path.join(self.generated_files_dir, brute_sol_base + ext),
+            'brute_outputs': os.path.join(self.generated_files_dir, files_config['brute_outputs']),
+            'optimal_solution': os.path.join(self.generated_files_dir, optimal_sol_base + ext),
+            'optimal_outputs': os.path.join(self.generated_files_dir, files_config['optimal_outputs']),
+            'input_file': os.path.join(self.workspace, files_config.get('input_file', 'input.txt')),
+            'output_file': os.path.join(self.workspace, files_config.get('output_file', 'output.txt')),
+            'results_json': os.path.join(self.generated_files_dir, files_config.get('results_json', 'results.json'))
         }
 
         self.max_attempts = self.config['execution']['max_optimal_attempts']
 
-    def solve(self, problem_statement: str, image_paths: Optional[List[str]] = None) -> Tuple[bool, Optional[str], Dict]:
+    def load_problem_files(self) -> Tuple[str, Optional[str], Optional[str], List[str]]:
+        """
+        Load problem statement, sample input/output, and images from problem folder.
+        
+        Returns:
+            Tuple of (problem_statement, sample_input, sample_output, image_paths)
+        """
+        # Load problem statement
+        problem_statement = ""
+        try:
+            with open(self.problem_statement_file, 'r', encoding='utf-8') as f:
+                problem_statement = f.read().strip()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Problem statement file not found: {self.problem_statement_file}")
+        
+        # Load sample input (optional)
+        sample_input = None
+        try:
+            with open(self.sample_input_file, 'r', encoding='utf-8') as f:
+                sample_input = f.read().strip()
+        except FileNotFoundError:
+            pass  # Sample input is optional
+        
+        # Load sample output (optional)
+        sample_output = None
+        try:
+            with open(self.sample_output_file, 'r', encoding='utf-8') as f:
+                sample_output = f.read().strip()
+        except FileNotFoundError:
+            pass  # Sample output is optional
+        
+        # Find image files matching the pattern
+        image_paths = []
+        if os.path.exists(self.problem_folder):
+            # Support multiple patterns (e.g., img_*.jpg, img_*.png)
+            patterns = self.image_pattern.split(',')
+            for pattern in patterns:
+                pattern = pattern.strip()
+                # Handle wildcards
+                if '*' in pattern:
+                    matches = glob.glob(os.path.join(self.problem_folder, pattern))
+                    image_paths.extend(matches)
+                else:
+                    # Single file
+                    full_path = os.path.join(self.problem_folder, pattern)
+                    if os.path.exists(full_path):
+                        image_paths.append(full_path)
+            image_paths = sorted(list(set(image_paths)))  # Remove duplicates and sort
+        
+        return problem_statement, sample_input, sample_output, image_paths
+
+    def solve(self, problem_statement: str, sample_input: Optional[str] = None, sample_output: Optional[str] = None, image_paths: Optional[List[str]] = None) -> Tuple[bool, Optional[str], Dict]:
         """
         Solve the given problem using multi-agent approach.
 
         Args:
             problem_statement: The problem description
+            sample_input: Optional sample input from problem folder
+            sample_output: Optional sample output from problem folder
             image_paths: Optional list of image file paths from problem statement
 
         Returns:
@@ -90,9 +158,17 @@ class ProblemSolverOrchestrator:
         print("STEP 1: Generating test cases...")
         print("=" * 80)
 
+        # Build context for agents (include sample input/output if available)
+        context_parts = [problem_statement]
+        if sample_input:
+            context_parts.append(f"\n\n=== SAMPLE INPUT ===\n{sample_input}")
+        if sample_output:
+            context_parts.append(f"\n\n=== SAMPLE OUTPUT ===\n{sample_output}")
+        full_context = "\n".join(context_parts)
+
         try:
             with ProgressIndicator("Generating test cases with TesterAgent"):
-                test_cases = self.tester_agent.generate_test_cases(problem_statement, image_paths=image_paths)
+                test_cases = self.tester_agent.generate_test_cases(full_context, image_paths=image_paths)
             with open(self.files['test_inputs'], 'w') as f:
                 f.write(test_cases)
             metadata['test_cases_generated'] = True
@@ -114,7 +190,7 @@ class ProblemSolverOrchestrator:
                 expected_class_name = os.path.splitext(os.path.basename(self.files['brute_solution']))[0]
             
             with ProgressIndicator("Generating brute force solution with BruteAgent"):
-                brute_code = self.brute_agent.generate_solution(problem_statement, image_paths=image_paths, expected_class_name=expected_class_name)
+                brute_code = self.brute_agent.generate_solution(full_context, image_paths=image_paths, expected_class_name=expected_class_name)
             with open(self.files['brute_solution'], 'w') as f:
                 f.write(brute_code)
             metadata['brute_force_generated'] = True
@@ -185,7 +261,7 @@ class ProblemSolverOrchestrator:
                 
                 with ProgressIndicator(f"Generating optimal solution (attempt {attempt}/{self.max_attempts})"):
                     optimal_code = self.optimal_agent.generate_solution(
-                        problem_statement,
+                        full_context,
                         feedback=feedback,
                         attempt=attempt,
                         image_paths=image_paths,
@@ -194,9 +270,9 @@ class ProblemSolverOrchestrator:
 
                 attempt_data['code'] = optimal_code
 
-                # Save this attempt separately
+                # Save this attempt separately in generatedFiles folder
                 lang_ext = { 'python': '.py', 'java': '.java', 'cpp': '.cpp', 'c++': '.cpp' }.get(self.language, '.py')
-                attempt_file = os.path.join(self.workspace, f'optimal_attempt_{attempt}{lang_ext}')
+                attempt_file = os.path.join(self.generated_files_dir, f'optimal_attempt_{attempt}{lang_ext}')
                 with open(attempt_file, 'w') as f:
                     f.write(optimal_code)
 
@@ -221,7 +297,7 @@ class ProblemSolverOrchestrator:
                     f_out.write(f_in.read())
             
             # Execute optimal solution
-            attempt_output_file = os.path.join(self.workspace, f'optimal_attempt_{attempt}_output.txt')
+            attempt_output_file = os.path.join(self.generated_files_dir, f'optimal_attempt_{attempt}_output.txt')
             success, error = self.executor.execute(
                 self.files['optimal_solution'],
                 self.files['input_file'],
@@ -323,7 +399,7 @@ class ProblemSolverOrchestrator:
             'total_attempts': metadata['attempts']
         }
 
-        results_file = os.path.join(self.workspace, 'results.json')
+        results_file = self.files['results_json']
         with open(results_file, 'w') as f:
             json.dump(results, f, indent=2)
 
@@ -332,7 +408,7 @@ class ProblemSolverOrchestrator:
         print("📊 VIEW RESULTS IN WEB BROWSER")
         print("=" * 80)
         print("\nTo view the beautiful HTML report, run:")
-        print("\n  python -m http.server 8000")
+        print("\n  python3 -m http.server 8000")
         print("\nThen open: http://localhost:8000/viewer.html")
         print("\n(HTTP server needed to avoid CORS restrictions)")
         print("=" * 80)

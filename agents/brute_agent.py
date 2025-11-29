@@ -52,12 +52,18 @@ class BruteAgent:
 
 Your task is to generate a SIMPLE, CORRECT brute force solution in {info['name']}.
 
+The problem statement may include:
+- Problem description from statement.txt
+- Sample input from sample_in.txt (if available) - use this to understand the input format
+- Sample output from sample_out.txt (if available) - use this to understand the expected output format
+- Images (img_1.jpg, img_2.jpg, etc.) that may contain additional problem information
+
 Guidelines:
 - Prioritize CORRECTNESS over efficiency
 - Use simple, straightforward approaches (nested loops, recursion, etc.)
 - Don't worry about time/space complexity
 - {info['io']}{java_note}
-- Handle the exact input/output format specified
+- Handle the exact input/output format specified (refer to sample_in.txt and sample_out.txt if provided)
 - Include proper input parsing
 - Optimize file I/O for speed (read/write efficiently)
 - No unnecessary comments or explanations in code
