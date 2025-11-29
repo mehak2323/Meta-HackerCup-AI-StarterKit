@@ -14,10 +14,10 @@ api_keys:
 #   - "google:gemini-2.5-pro"           # Most capable, slower (100 free requests / day) - winning model
 #   - "google:gemini-2.5-flash"         # Latest & fastest (250 free requests / day)
 #   - "google:gemini-2.5-flash-lite"    # Fast & Cheap (1000 free requests / day) - good for testing
-#
+# gemini-3-pro-preview
 models:
   tester_agent: "google:gemini-2.5-flash"    
-  brute_agent: "google:gemini-2.5-flash"     
+  brute_agent: "google:gemini-2.5-pro"     
   optimal_agent: "google:gemini-2.5-pro"
   # Optional: Model for comprehensive test generation (defaults to tester_agent if not specified)
   comprehensive_test_agent: "google:gemini-2.5-flash"   
