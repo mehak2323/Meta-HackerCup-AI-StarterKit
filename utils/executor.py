@@ -34,7 +34,7 @@ class CodeExecutor:
     def _get_run_command(self, code_file: str) -> list:
         """Get execution command for the language."""
         if self.language == 'python':
-            return ['python', code_file]
+            return ['python3', code_file]
         elif self.language == 'java':
             # Extract class name from file
             class_name = os.path.splitext(os.path.basename(code_file))[0]

@@ -1,43 +1,46 @@
-It's almost time to present the winners for Whacker Cup! In most sports, the top-3 finishers get to stand on the winners podium. However, the organizers feel that everyone is a winner for having participated in the amazing event, and that all $N$ competitors deserve to stand on the podium!
+The massive progress of Tasky has invited bad actors to test its limits (while also raising questions as to whether humans needs a killswitch for such a powerful technology).
 
-The organizers want to build a podium comprised of $N$ platforms in a row (numbered $1..N$) with bricks of equal size. For each platform $i$, the organizers must decide on some height of $x_i$ bricks tall. To signify the winners' ranks, the platform heights must be non-increasing and non-negative, i.e. $x_1 \ge x_2 \ge \dots \ge x_N \ge 0$.
+Researchers are aware of "adversarial prompts" based off of $N$ attack words ($W_1, ..., W_N$ of lowercase English letters `a`..`z`). When Tasky's input contains all these words in the exact order $W_1, ..., W_N$, it will crash.
 
-While bricks are equal-sized, they have varying *amazingness*. Platform $i$ must be built *only with* bricks of amazingness $A_i$. The amazingness of the final podium is the sum of amazingnesses of all bricks used ($A_1 \cdot x_1 + A_2 \cdot x_2 + ... + A_N \cdot x_N$), which the organizers want to be at least $M$. Since amazing bricks are expensive, they also wish to minimize the total number of bricks used.
+It turns out the words don't actually have to be inputted disjointly to work. An *attack superstring* $S$ will crash Tasky as long as all $N$ words are present as (possibly overlapping) substrings in order, and every letter in the superstring is used by one of those substrings.
 
-Formalizing all the above, an "amazing" podium is given by a sequence $[x_1, ..., x_N]$ such that:
-* $x_1 \ge x_2 \ge \dots \ge x_N \ge 0$,
-* $A_1 \cdot x_1 + A_2 \cdot x_2 + ... + A_N \cdot x_N \ge M$, and
-* $x_1 + x_2 + \dots + x_N$ is minimized.
+Formally, an attack superstring $S_{1..L}$ works if there exists a list of $N$ ranges $[L_i, R_i]$ where:
+* For every $i = 1..N$, attack word $W_i$ occurs as a substring at $[L_i, R_i]$. That is, $S_{L_i..R_i} = W_i$.
+* For all $i < j$, we have $L_i \le L_j$ and $R_i \le R_j$. That is, all $N$ attack word substrings must occur in order $W_1, ..., W_N$.
+* Every index in $S$ must be part of at least one range (i.e. **no extraneous characters allowed**).
 
-Can you find such an amazing podium? If there are multiple answers, any will be accepted.
+For each $L = 1..K$, you'd like to know if there exists a working attack superstring of length $L$. Please find the sum of all such working lengths.
+
+_Note that the words $W_i$ are given in a compressed format, where $W_i$ is compressed to $C_i$ as defined below._
 
 # Constraints
 
-$1 \le T \le 100$
-$1 \le N \le 1000$
-$1 \le M \le 10^{12}$
-$1 \le A_i \le 10^{12}$
+$1 \le T \le 90$
+$1 \le N \le 2000$
+$1 \le K \le 10^6$
+$1 \le |C_i| \le 2{,}000 $ (The length of each compressed word is at most $2{,}000$)
+$1 \le |W_i| \le 10^6 $ (The length of each uncompressed word is at most $10^6$)
 
-$N$ exceeds $500$ in at most $11$ test cases.
+At most $4$ cases contain a word with an uncompressed length greater than $10^4$.
+
+_There is no explicit bound on the **sum** of lengths of uncompressed strings._
 
 # Input Format
 
-Input begins with an integer $T$, the number of test cases. The first line of each case contains two integers $N$ and $M$. The second line contains $N$ integers $A_1, ..., A_N$.
+Input begins with an integer $T$, the number of test cases. The first line of each case contains two integers $N$ and $K$. $N$ lines follow, the \(i\)th of which contains the compressed version attack word $C_i$ (a string of only numeric digits).
+
+Numbers in the compressed word indicate how many copies of the following character appear when decompressing. For example, `c3po` should be decompressed to `cpppo`, and `11ab` should be decompressed into `aaaaaaaaaaab`. 
 
 # Output Format
 
-For the \(i\)th test case, print "`Case #i:` " followed by the minimum number of bricks needed to build the podium to spec, followed by a new line with $N$ space-separated integers $x_1, ..., x_N$.
+For the \(i\)th test case, print "`Case #i:` " followed by a single integer, the sum of all lengths for which a working attack superstring exists.
 
 # Sample Explanation
 
-In the first sample case, $N = 3$ and $M = 27$. Brick types have amazingness of $A = [3, 5, 1]$. One possible answer is $x = [4, 3, 0]$, which satisfies the conditions $4 \ge 3 \ge 0$ and $3 * 4 + 5 * 3 + 1 * 0 = 27 \ge M = 27$ while minimizing the total bricks used at $4 + 3 + 0 = 7$.
+In the first sample case, there are no working superstrings of lengths $1$ to $8$, but there is one superstring of length $9$: `sandymeta`. It contains `sand` in $1 \dots 4$, `andy` in $2 \dots 5$, and `meta` in $6 \dots 9$. Since $9$ is the only length that works, we add it to the answer, to get a total of $9$.
 
-{{PHOTO_ID:827173076735070|WIDTH:350}}
+In the second sample, `banana` (length $6$) and `bananana` (length $8$) are the two working superstrings. The final answer is $6+8 = 14$.
 
-In the second sample case, $N = 3$ and $M = 18$. One possible answer using the minimum of $4$ total bricks is depicted below:
+In the fourth sample, the decompressed substrings are `aaaaaa` and `aab`. The working superstrings are `aaaaaab` (length $7$), `aaaaaaab` (length $8$), and `aaaaaaaab` (length $9$). Note that, for example `aaaaaacaab` does not work, because it contains a character (`c`) not used by any substring range. The final answer is $7 + 8 + 9 = 24$.
 
-{{PHOTO_ID:862748012769393|WIDTH:350}}
 
-In the fourth sample case, $N = 5$ and $M = 100$. One possible answer using the minimum of $11$ total bricks is depicted below:
-
-{{PHOTO_ID:1558751675314316|WIDTH:600}}
