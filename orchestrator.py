@@ -65,13 +65,15 @@ class ProblemSolverOrchestrator:
 
         self.max_attempts = self.config['execution']['max_optimal_attempts']
 
-    def solve(self, problem_statement: str, image_paths: Optional[List[str]] = None) -> Tuple[bool, Optional[str], Dict]:
+    def solve(self, problem_statement: str, image_paths: Optional[List[str]] = None, sample_input: Optional[str] = None, sample_output: Optional[str] = None) -> Tuple[bool, Optional[str], Dict]:
         """
         Solve the given problem using multi-agent approach.
 
         Args:
             problem_statement: The problem description
             image_paths: Optional list of image file paths from problem statement
+            sample_input: Optional sample input from problem folder
+            sample_output: Optional sample output from problem folder
 
         Returns:
             Tuple of (success, optimal_code, metadata)
@@ -92,7 +94,12 @@ class ProblemSolverOrchestrator:
 
         try:
             with ProgressIndicator("Generating test cases with TesterAgent"):
-                test_cases = self.tester_agent.generate_test_cases(problem_statement, image_paths=image_paths)
+                test_cases = self.tester_agent.generate_test_cases(
+                    problem_statement, 
+                    image_paths=image_paths,
+                    sample_input=sample_input,
+                    sample_output=sample_output
+                )
             with open(self.files['test_inputs'], 'w') as f:
                 f.write(test_cases)
             metadata['test_cases_generated'] = True
@@ -114,7 +121,13 @@ class ProblemSolverOrchestrator:
                 expected_class_name = os.path.splitext(os.path.basename(self.files['brute_solution']))[0]
             
             with ProgressIndicator("Generating brute force solution with BruteAgent"):
-                brute_code = self.brute_agent.generate_solution(problem_statement, image_paths=image_paths, expected_class_name=expected_class_name)
+                brute_code = self.brute_agent.generate_solution(
+                    problem_statement, 
+                    image_paths=image_paths, 
+                    expected_class_name=expected_class_name,
+                    sample_input=sample_input,
+                    sample_output=sample_output
+                )
             with open(self.files['brute_solution'], 'w') as f:
                 f.write(brute_code)
             metadata['brute_force_generated'] = True
@@ -189,7 +202,9 @@ class ProblemSolverOrchestrator:
                         feedback=feedback,
                         attempt=attempt,
                         image_paths=image_paths,
-                        expected_class_name=expected_class_name
+                        expected_class_name=expected_class_name,
+                        sample_input=sample_input,
+                        sample_output=sample_output
                     )
 
                 attempt_data['code'] = optimal_code

@@ -95,13 +95,15 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
         except Exception as e:
             raise ValueError(f"Could not load image {image_path}: {e}")
 
-    def generate_solution(self, problem_statement: Union[str, List], image_paths: Optional[List[str]] = None, expected_class_name: Optional[str] = None) -> str:
+    def generate_solution(self, problem_statement: Union[str, List], image_paths: Optional[List[str]] = None, expected_class_name: Optional[str] = None, sample_input: Optional[str] = None, sample_output: Optional[str] = None) -> str:
         """Generate brute force solution for the given problem.
         
         Args:
             problem_statement: Problem description (text or list of content parts)
             image_paths: Optional list of image file paths to include
             expected_class_name: For Java, the expected class name (filename without extension)
+            sample_input: Optional sample input from problem folder
+            sample_output: Optional sample output from problem folder
         """
         # Prepare content for HumanMessage
         content_parts = []
@@ -112,11 +114,26 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
             java_class_note = f"\n\nCRITICAL FOR JAVA: The class must be named exactly '{expected_class_name}' (matching the filename)."
         
         if isinstance(problem_statement, str):
-            content_parts.append(f"Generate a brute force {self.language} solution for this problem:{java_class_note}\n\n{problem_statement}")
+            # Build the problem description with sample input/output if available
+            problem_text = problem_statement
+            if sample_input:
+                problem_text += f"\n\n=== SAMPLE INPUT ===\n{sample_input}"
+            if sample_output:
+                problem_text += f"\n\n=== SAMPLE OUTPUT ===\n{sample_output}"
+            content_parts.append(f"Generate a brute force {self.language} solution for this problem:{java_class_note}\n\n{problem_text}")
         else:
+            # If it's a list, extend with the list items (which may include images)
             if java_class_note:
                 content_parts.append(java_class_note)
             content_parts.extend(problem_statement)
+            # Add sample input/output as text if provided
+            if sample_input or sample_output:
+                sample_text = ""
+                if sample_input:
+                    sample_text += f"\n\n=== SAMPLE INPUT ===\n{sample_input}"
+                if sample_output:
+                    sample_text += f"\n\n=== SAMPLE OUTPUT ===\n{sample_output}"
+                content_parts.append(sample_text)
         
         # Add images if provided
         if image_paths:

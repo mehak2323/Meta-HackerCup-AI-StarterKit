@@ -22,12 +22,28 @@ models:
 
 # Language Configuration
 # Supported languages: python, java, cpp
-language: "python"  # Options: python, java, cpp
+language: "java"  # Options: python, java, cpp
 
 # Execution Parameters
 execution:
-  max_optimal_attempts: 5
+  max_optimal_attempts: 3
   timeout_seconds: 30  # Timeout for code execution
+
+# Problem Input Configuration
+# All problem-related files (statement, sample inputs/outputs, images) are in the problem folder
+problem:
+  folder: "./problem"  # Path to the problem folder
+  statement: "statement.txt"  # Problem statement file name
+  sample_input: "sample_in.txt"  # Sample input file name (optional)
+  sample_output: "sample_out.txt"  # Sample output file name (optional)
+  # Image file patterns - will search for files matching these patterns in the problem folder
+  # Supports glob patterns like "img_*.jpg", "*.png", etc.
+  image_patterns:
+    - "img_*.jpg"
+    - "img_*.jpeg"
+    - "img_*.png"
+    - "img_*.gif"
+    - "img_*.webp"
 
 # Output Configuration
 output:
