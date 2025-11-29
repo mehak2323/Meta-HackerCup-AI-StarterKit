@@ -18,7 +18,9 @@ api_keys:
 models:
   tester_agent: "google:gemini-2.5-flash"    
   brute_agent: "google:gemini-2.5-flash"     
-  optimal_agent: "google:gemini-2.5-flash"   
+  optimal_agent: "google:gemini-2.5-pro"
+  # Optional: Model for comprehensive test generation (defaults to tester_agent if not specified)
+  comprehensive_test_agent: "google:gemini-2.5-flash"   
 
 # Language Configuration
 # Supported languages: python, java, cpp

@@ -133,6 +133,8 @@ def main():
     print(f"Brute force generated: {metadata['brute_force_generated']}")
     print(f"Brute force executed: {metadata['brute_force_executed']}")
     print(f"Optimal solution found: {metadata['optimal_solution_found']}")
+    if metadata.get('optimal_execution_time') is not None:
+        print(f"Optimal solution execution time: {metadata['optimal_execution_time']:.3f}s")
 
     if metadata['errors']:
         print(f"\nErrors encountered: {len(metadata['errors'])}")
@@ -146,6 +148,36 @@ def main():
         print(optimal_code)
         print("\n")
         print(f"Solution saved to: {orchestrator.files['optimal_solution']}")
+        
+        # Ask user if they want to run comprehensive tests
+        print("\n" + "=" * 80)
+        print("COMPREHENSIVE TESTING OPTION")
+        print("=" * 80)
+        print("Would you like to generate and run comprehensive test cases?")
+        print("This will create additional test cases with edge cases and large inputs.")
+        print("(y/n): ", end='', flush=True)
+        
+        try:
+            user_input = input().strip().lower()
+            if user_input in ['y', 'yes']:
+                # Run comprehensive tests
+                comprehensive_results = orchestrator.run_comprehensive_tests(
+                    problem_statement,
+                    optimal_code,
+                    image_paths=image_paths if image_paths else None,
+                    sample_input=sample_input,
+                    sample_output=sample_output
+                )
+                
+                # Update metadata with comprehensive test results
+                metadata['comprehensive_tests'] = comprehensive_results
+                
+                # Regenerate results.json with comprehensive test data
+                orchestrator._generate_results_json(problem_statement, metadata)
+            else:
+                print("Skipping comprehensive tests.")
+        except (EOFError, KeyboardInterrupt):
+            print("\nSkipping comprehensive tests.")
     else:
         print("\nFailed to find a working solution.")
         if orchestrator.files['brute_solution']:

@@ -1,5 +1,6 @@
 import subprocess
 import os
+import time
 from typing import Tuple, Optional
 
 
@@ -45,7 +46,7 @@ class CodeExecutor:
         else:
             raise ValueError(f"Unsupported language: {self.language}")
 
-    def execute(self, code_file: str, input_file: str, output_file: str) -> Tuple[bool, str]:
+    def execute(self, code_file: str, input_file: str, output_file: str) -> Tuple[bool, str, float]:
         """
         Execute code with input from file and save output to file.
 
@@ -55,13 +56,13 @@ class CodeExecutor:
             output_file: Path to save output
 
         Returns:
-            Tuple of (success: bool, error_message: str)
+            Tuple of (success: bool, error_message: str, execution_time: float in seconds)
         """
         if not os.path.exists(code_file):
             return False, f"Code file not found: {code_file}"
 
         if not os.path.exists(input_file):
-            return False, f"Input file not found: {input_file}"
+            return False, f"Input file not found: {input_file}", 0.0
 
         try:
             # Compile if needed
@@ -77,14 +78,15 @@ class CodeExecutor:
                     error_msg = f"Compilation failed:\n"
                     error_msg += f"STDERR: {compile_result.stderr}\n"
                     error_msg += f"STDOUT: {compile_result.stdout}"
-                    return False, error_msg
+                    return False, error_msg, 0.0
 
             # Read input from file
             with open(input_file, 'r') as f_in:
                 input_data = f_in.read()
 
-            # Execute
+            # Execute and measure time
             run_cmd = self._get_run_command(code_file)
+            start_time = time.time()
             result = subprocess.run(
                 run_cmd,
                 input=input_data,
@@ -92,20 +94,21 @@ class CodeExecutor:
                 text=True,
                 timeout=self.timeout
             )
+            execution_time = time.time() - start_time
 
             if result.returncode != 0:
                 error_msg = f"Execution failed with return code {result.returncode}\n"
                 error_msg += f"STDERR: {result.stderr}\n"
                 error_msg += f"STDOUT: {result.stdout}"
-                return False, error_msg
+                return False, error_msg, execution_time
 
             # Save output
             with open(output_file, 'w') as f_out:
                 f_out.write(result.stdout)
 
-            return True, ""
+            return True, "", execution_time
 
         except subprocess.TimeoutExpired:
-            return False, f"Execution timed out after {self.timeout} seconds"
+            return False, f"Execution timed out after {self.timeout} seconds", self.timeout
         except Exception as e:
-            return False, f"Execution error: {str(e)}"
+            return False, f"Execution error: {str(e)}", 0.0
