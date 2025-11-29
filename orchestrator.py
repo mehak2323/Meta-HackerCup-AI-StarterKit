@@ -123,13 +123,26 @@ class ProblemSolverOrchestrator:
             if self.language == 'java':
                 expected_class_name = os.path.splitext(os.path.basename(self.files['brute_solution']))[0]
             
+            # Determine sample input file path if available
+            sample_input_file = None
+            if sample_input:
+                # Use the sample input file from problem folder
+                problem_config = self.config.get('problem', {})
+                problem_folder = problem_config.get('folder', './problem')
+                sample_input_filename = problem_config.get('sample_input', 'sample_in.txt')
+                sample_input_file = os.path.join(problem_folder, sample_input_filename)
+                # Use absolute path
+                if not os.path.isabs(sample_input_file):
+                    sample_input_file = os.path.abspath(sample_input_file)
+            
             with ProgressIndicator("Generating brute force solution with BruteAgent"):
                 brute_code = self.brute_agent.generate_solution(
                     problem_statement, 
                     image_paths=image_paths, 
                     expected_class_name=expected_class_name,
                     sample_input=sample_input,
-                    sample_output=sample_output
+                    sample_output=sample_output,
+                    sample_input_file=sample_input_file
                 )
             with open(self.files['brute_solution'], 'w') as f:
                 f.write(brute_code)
@@ -145,14 +158,35 @@ class ProblemSolverOrchestrator:
         print("STEP 3: Executing brute force solution...")
         print("=" * 80)
 
-        # Copy test inputs to input.txt for execution
-        with open(self.files['test_inputs'], 'r') as f_in:
-            with open(self.files['input_file'], 'w') as f_out:
-                f_out.write(f_in.read())
+        # Use sample input file if available, otherwise use test inputs
+        brute_input_file = self.files['input_file']
+        if sample_input:
+            # Use the sample input file from problem folder
+            problem_config = self.config.get('problem', {})
+            problem_folder = problem_config.get('folder', './problem')
+            sample_input_filename = problem_config.get('sample_input', 'sample_in.txt')
+            sample_input_file = os.path.join(problem_folder, sample_input_filename)
+            # Use absolute path
+            if not os.path.isabs(sample_input_file):
+                sample_input_file = os.path.abspath(sample_input_file)
+            if os.path.exists(sample_input_file):
+                brute_input_file = sample_input_file
+                print(f"Using sample input file: {brute_input_file}")
+            else:
+                # Fallback to test inputs if sample input file doesn't exist
+                print(f"Warning: Sample input file not found at {sample_input_file}, using test inputs instead")
+                with open(self.files['test_inputs'], 'r') as f_in:
+                    with open(self.files['input_file'], 'w') as f_out:
+                        f_out.write(f_in.read())
+        else:
+            # Copy test inputs to input.txt for execution
+            with open(self.files['test_inputs'], 'r') as f_in:
+                with open(self.files['input_file'], 'w') as f_out:
+                    f_out.write(f_in.read())
         
         success, error, exec_time = self.executor.execute(
             self.files['brute_solution'],
-            self.files['input_file'],
+            brute_input_file,
             self.files['output_file']
         )
         

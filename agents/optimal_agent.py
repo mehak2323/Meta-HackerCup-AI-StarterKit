@@ -59,6 +59,8 @@ Guidelines:
 - {info['io']}{java_note}
 - Handle the exact input/output format specified
 - Include proper input parsing
+- Use a NORMAL WRITER pattern: Read ALL test cases first, process them all, then write ALL answers to the output file at once (not one by one)
+- Write the answer for each test case in the same order as input, with the same format as specified in the problem
 - Optimize file I/O for speed (read/write efficiently)
 - The solution must be CORRECT (passing all test cases)
 - No unnecessary comments or explanations in code

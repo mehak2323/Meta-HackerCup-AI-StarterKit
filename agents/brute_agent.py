@@ -28,18 +28,18 @@ class BruteAgent:
         lang_info = {
             'python': {
                 'name': 'Python',
-                'io': 'Use open("input.txt", "r") for reading and open("output.txt", "w") for writing. Read all input at once for speed.',
+                'io': 'Use open() for reading from the specified input file and open("output.txt", "w") for writing. Read all input at once for speed.',
                 'ext': 'python'
             },
             'java': {
                 'name': 'Java',
-                'io': 'Use BufferedReader and FileReader for fast input, PrintWriter for fast output. Read from "input.txt" and write to "output.txt".',
+                'io': 'Use BufferedReader and FileReader for fast input, PrintWriter for fast output. Read from the specified input file and write to "output.txt".',
                 'ext': 'java',
                 'note': 'IMPORTANT: The class name must match the filename (without .java extension). For example, if the file is "brute.java", the class must be named "brute".'
             },
             'cpp': {
                 'name': 'C++',
-                'io': 'Use ifstream for reading from "input.txt" and ofstream for writing to "output.txt". Use ios_base::sync_with_stdio(false) for speed.',
+                'io': 'Use ifstream for reading from the specified input file and ofstream for writing to "output.txt". Use ios_base::sync_with_stdio(false) for speed.',
                 'ext': 'cpp'
             }
         }
@@ -59,10 +59,12 @@ Guidelines:
 - {info['io']}{java_note}
 - Handle the exact input/output format specified
 - Include proper input parsing
+- Use a NORMAL WRITER pattern: Read ALL test cases first, process them all, then write ALL answers to the output file at once (not one by one)
+- Write the answer for each test case in the same order as input, with the same format as specified in the problem
 - Optimize file I/O for speed (read/write efficiently)
 - No unnecessary comments or explanations in code
 - Make sure the solution is complete and runnable
-- The solution must read from "input.txt" and write to "output.txt"
+- The solution must read from the input file and write to "output.txt"
 
 Output ONLY the {info['name']} code, no markdown, no explanations.
 """
@@ -95,7 +97,7 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
         except Exception as e:
             raise ValueError(f"Could not load image {image_path}: {e}")
 
-    def generate_solution(self, problem_statement: Union[str, List], image_paths: Optional[List[str]] = None, expected_class_name: Optional[str] = None, sample_input: Optional[str] = None, sample_output: Optional[str] = None) -> str:
+    def generate_solution(self, problem_statement: Union[str, List], image_paths: Optional[List[str]] = None, expected_class_name: Optional[str] = None, sample_input: Optional[str] = None, sample_output: Optional[str] = None, sample_input_file: Optional[str] = None) -> str:
         """Generate brute force solution for the given problem.
         
         Args:
@@ -104,6 +106,7 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
             expected_class_name: For Java, the expected class name (filename without extension)
             sample_input: Optional sample input from problem folder
             sample_output: Optional sample output from problem folder
+            sample_input_file: Optional path to sample input file to read from instead of "input.txt"
         """
         # Prepare content for HumanMessage
         content_parts = []
@@ -113,6 +116,11 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
         if self.language == 'java' and expected_class_name:
             java_class_note = f"\n\nCRITICAL FOR JAVA: The class must be named exactly '{expected_class_name}' (matching the filename)."
         
+        # Determine input file to use
+        input_file_note = ""
+        if sample_input_file:
+            input_file_note = f"\n\nCRITICAL: The solution must read from the file \"{sample_input_file}\" instead of \"input.txt\". Use this exact file path for reading input."
+        
         if isinstance(problem_statement, str):
             # Build the problem description with sample input/output if available
             problem_text = problem_statement
@@ -120,11 +128,16 @@ Output ONLY the {info['name']} code, no markdown, no explanations.
                 problem_text += f"\n\n=== SAMPLE INPUT ===\n{sample_input}"
             if sample_output:
                 problem_text += f"\n\n=== SAMPLE OUTPUT ===\n{sample_output}"
-            content_parts.append(f"Generate a brute force {self.language} solution for this problem:{java_class_note}\n\n{problem_text}")
+            content_parts.append(f"Generate a brute force {self.language} solution for this problem:{java_class_note}{input_file_note}\n\n{problem_text}")
         else:
             # If it's a list, extend with the list items (which may include images)
-            if java_class_note:
-                content_parts.append(java_class_note)
+            if java_class_note or input_file_note:
+                notes = ""
+                if java_class_note:
+                    notes += java_class_note
+                if input_file_note:
+                    notes += input_file_note
+                content_parts.append(notes)
             content_parts.extend(problem_statement)
             # Add sample input/output as text if provided
             if sample_input or sample_output:
